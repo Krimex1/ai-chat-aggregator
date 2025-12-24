@@ -7,7 +7,7 @@ SITE_NAME = "LocalVisionChat"
 REFERER = "http://localhost:25625"
 
 # --- API CONFIG ---
-API_KEY = "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"
+API_KEY = os.getenv("OPENROUTER_API_KEY", "your-api-key-here")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 # --- MODELS ---
