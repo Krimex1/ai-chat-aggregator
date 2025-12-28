@@ -163,21 +163,6 @@ def seconds_until_next_3_msk() -> float:
 
 Приветствуются pull requests! Для больших изменений сначала откройте issue для обсуждения.
 
-## 📝 Лицензия
-
-MIT License - используйте свободно для личных и коммерческих проектов.
-
-## 🙏 Благодарности
-
-- [OpenRouter](https://openrouter.ai/) - API агрегатор LLM моделей
-- [DuckDuckGo](https://duckduckgo.com/) - Веб-поиск
-- [Pollinations AI](https://pollinations.ai/) - Генерация изображений
-- [Open LLM Leaderboard](https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard) - Данные рейтингов
-
-## 📧 Контакты
-
-Вопросы и предложения: [GitHub Issues](https://github.com/Krimex1/ai-chat-aggregator/issues)
-
 ---
 
 ⭐ Если проект оказался полезным, поставьте звездочку на GitHub!
