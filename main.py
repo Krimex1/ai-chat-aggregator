@@ -44,10 +44,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Подключение роутеров и планировщика аналитики
-app.include_router(analytics_router)
+# Initialize database
+from database import db
+
+# Подключение роутеров
 app.include_router(auth_router, prefix="/api")
-init_analytics_scheduler(app)
 
 # --- SEARCH LOGIC ---
 def perform_search(query: str) -> str:
