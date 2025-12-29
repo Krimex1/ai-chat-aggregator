@@ -291,7 +291,7 @@ INDEX_HTML = """
         #drag-overlay { pointer-events: none; opacity: 0; transition: opacity 0.2s; }
         #drag-overlay.active { pointer-events: auto; opacity: 1; }
     </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Supabase removed - using local authentication API -->
 
     <style>
     .typing-indicator { display: inline-flex; align-items: center; gap: 6px; padding: 12px 16px; background: #f3f4f6; border-radius: 12px; border-bottom-left-radius: 4px; margin-bottom: 8px; width: fit-content; min-height: 24px; }
@@ -634,23 +634,31 @@ INDEX_HTML = """
 
     <script>
     // --- GLOBAL VARS ---
-    let sb;
     let currentUser = null;
-    const SUPABASE_URL = "https://sjgngrbuedlzuuzzcymi.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNqZ25ncmJ1ZWRsenV1enpjeW1pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwOTg3NjIsImV4cCI6MjA4MDY3NDc2Mn0.eJb3OzVYZmaW7hsIJbZ8yDhkFzaAucVP80rYuPieGmM";
+    let currentSessionToken = null;
     
-    // --- INIT ---
+    // Load session from localStorage on page load
     window.addEventListener('DOMContentLoaded', async () => {
-        if (typeof supabase === 'undefined') { console.error("Supabase not loaded"); return; }
-        const { createClient } = supabase;
-        sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
-            auth: {
-                persistSession: true,
-                storage: window.localStorage,
-                autoRefreshToken: true,
-                detectSessionInUrl: true
+        // Try to restore session from localStorage
+        const storedSession = localStorage.getItem('session_token');
+        const storedUser = localStorage.getItem('current_user');
+        
+        if (storedSession && storedUser) {
+            currentSessionToken = storedSession;
+            try {
+                currentUser = JSON.parse(storedUser);
+                // Update UI to show logged in state
+                updateUserUI(currentUser);
+                loadRemoteChats();
+                loadUserAvatar();
+            } catch (e) {
+                console.error('Error restoring session:', e);
+                // Clear invalid session data
+                localStorage.removeItem('session_token');
+                localStorage.removeItem('current_user');
             }
-        });
+        }
+        
         await init();
     });
     
@@ -1378,29 +1386,38 @@ function regenerateResponse(index) {
                 let isSignUp = false;
 
         async function initAuth() {
-            console.log("Initializing Auth...");
-            const { data: { session } } = await sb.auth.getSession();
-
-            if (session && session.user) {
-                updateUserUI(session.user);
-                loadRemoteChats();
-                loadUserAvatar();
+            console.log("Initializing Local Auth...");
+            
+            // Check if we have a valid session in localStorage
+            if (currentSessionToken && currentUser) {
+                try {
+                    // Verify the session is still valid
+                    const response = await fetch('/api/auth/me', {
+                        headers: {
+                            'Authorization': `Bearer ${currentSessionToken}`
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        updateUserUI(data.user);
+                        loadRemoteChats();
+                        loadUserAvatar();
+                    } else {
+                        // Session is invalid, clear it
+                        localStorage.removeItem('session_token');
+                        localStorage.removeItem('current_user');
+                        updateUserUI(null);
+                    }
+                } catch (error) {
+                    console.error('Error verifying session:', error);
+                    localStorage.removeItem('session_token');
+                    localStorage.removeItem('current_user');
+                    updateUserUI(null);
+                }
             } else {
                 updateUserUI(null);
             }
-
-            sb.auth.onAuthStateChange((event, session) => {
-                if (event === 'SIGNED_IN' && session) {
-                     updateUserUI(session.user);
-                     if (!isChatsLoaded) { loadRemoteChats(); isChatsLoaded = true; }
-                     loadUserAvatar();
-                } else if (event === 'SIGNED_OUT') {
-                     updateUserUI(null);
-                     chats = [];
-                     renderList();
-                     resetAvatarUI();
-                }
-            });
         }
 
         function updateUserUI(user) {
@@ -1645,26 +1662,61 @@ function regenerateResponse(index) {
 
             try {
                 if(isSignUp) {
-                    const { data, error } = await sb.auth.signUp({email, password});
-                    if(error) throw error;
-                    alert('Проверьте почту для подтверждения!');
-                    closeAuthModal();
-                } else {
-                    const { data, error } = await sb.auth.signInWithPassword({email, password});
-                    if(error) throw error;
-                    if (data.user) {
-                         updateUserUI(data.user);
-                         loadUserAvatar();
+                    const response = await fetch('/api/auth/signup', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ email, password })
+                    });
+                    
+                    if(response.ok) {
+                        const data = await response.json();
+                        // Store session token and user info
+                        currentSessionToken = data.session_token;
+                        currentUser = data.user;
+                        localStorage.setItem('session_token', currentSessionToken);
+                        localStorage.setItem('current_user', JSON.stringify(currentUser));
+                        
+                        alert('Регистрация успешна! Добро пожаловать!');
+                        closeAuthModal();
+                    } else {
+                        const errorData = await response.json();
+                        throw new Error(errorData.detail || 'Ошибка регистрации');
                     }
-                    closeAuthModal();
+                } else {
+                    const response = await fetch('/api/auth/signin', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ email, password })
+                    });
+                    
+                    if(response.ok) {
+                        const data = await response.json();
+                        // Store session token and user info
+                        currentSessionToken = data.session_token;
+                        currentUser = data.user;
+                        localStorage.setItem('session_token', currentSessionToken);
+                        localStorage.setItem('current_user', JSON.stringify(currentUser));
+                        
+                        updateUserUI(data.user);
+                        loadUserAvatar();
+                        closeAuthModal();
+                    } else {
+                        const errorData = await response.json();
+                        throw new Error(errorData.detail || 'Ошибка входа');
+                    }
                 }
-            } catch(e) { 
-                alert(e.message); 
+            } catch(e) {
+                alert(e.message);
                 btn.disabled = false;
                 btn.textContent = originalText;
             } finally {
                  btn.disabled = false;
                  btn.textContent = originalText;
+            }
             }
         });
 

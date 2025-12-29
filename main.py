@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import httpx
 from duckduckgo_search import DDGS
 
-# Импорты из новых модулов
+# Импорты из новых модулей
 from config import (
     PORT,
     API_KEY,
@@ -28,6 +28,9 @@ from templates import INDEX_HTML
 # Интеграция аналитики (без изменений)
 from analytics import router as analytics_router, init_analytics_scheduler
 
+# Authentication and database API
+from auth_api import router as auth_router
+
 # --- LOGGING SETUP ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ChatApp")
@@ -41,8 +44,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Подключение роутера и планировщика аналитики
+# Подключение роутеров и планировщика аналитики
 app.include_router(analytics_router)
+app.include_router(auth_router, prefix="/api")
 init_analytics_scheduler(app)
 
 # --- SEARCH LOGIC ---
