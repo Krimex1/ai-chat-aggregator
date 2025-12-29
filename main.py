@@ -6,14 +6,13 @@ import time
 import urllib.parse
 import random
 from typing import List, Optional, AsyncGenerator
-
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
-from ddgs import DDGS
+from duckduckgo_search import DDGS
 
-# Импорты из новых модулей
+# Импорты из новых модулов
 from config import (
     PORT,
     API_KEY,
@@ -71,6 +70,7 @@ def generate_pollinations_html(prompt: str) -> str:
         clean_prompt = clean_prompt.strip()
         if not clean_prompt:
             clean_prompt = "masterpiece"
+        
         enhanced_prompt = f"{clean_prompt}, hyperrealistic, 8k, highly detailed, raw photo, cinematic lighting"
         encoded_prompt = urllib.parse.quote(enhanced_prompt)
         seed = random.randint(0, 1000000)
@@ -81,89 +81,22 @@ def generate_pollinations_html(prompt: str) -> str:
         <!DOCTYPE html>
         <html>
         <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Generated Image - {uid}</title>
+            <meta charset="utf-8">
+            <title>Generated Image</title>
             <style>
-                * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-                body {{
-                    font-family: 'Segoe UI', sans-serif;
-                    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-                    min-height: 100vh;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    padding: 20px;
-                }}
-                .container {{
-                    max-width: 1200px;
-                    width: 100%;
-                    background: rgba(255, 255, 255, 0.05);
-                    backdrop-filter: blur(10px);
-                    border-radius: 20px;
-                    padding: 30px;
-                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-                }}
-                h1 {{
-                    color: #00d4ff;
-                    text-align: center;
-                    margin-bottom: 10px;
-                    font-size: 2em;
-                }}
-                .prompt {{
-                    color: #a0a0a0;
-                    text-align: center;
-                    margin-bottom: 30px;
-                    font-style: italic;
-                }}
-                .image-wrapper {{
-                    position: relative;
-                    width: 100%;
-                    border-radius: 15px;
-                    overflow: hidden;
-                    box-shadow: 0 10px 40px rgba(0, 212, 255, 0.3);
-                }}
-                .image-wrapper img {{
-                    width: 100%;
-                    height: auto;
-                    display: block;
-                }}
-                .loader {{
-                    position: absolute;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                    width: 50px;
-                    height: 50px;
-                    border: 5px solid rgba(0, 212, 255, 0.2);
-                    border-top-color: #00d4ff;
-                    border-radius: 50%;
-                    animation: spin 1s linear infinite;
-                }}
-                @keyframes spin {{
-                    to {{ transform: translate(-50%, -50%) rotate(360deg); }}
-                }}
-                .info {{
-                    margin-top: 20px;
-                    padding: 15px;
-                    background: rgba(255, 255, 255, 0.03);
-                    border-radius: 10px;
-                    color: #c0c0c0;
-                    font-size: 0.9em;
-                }}
-                .info strong {{ color: #00d4ff; }}
+                body {{ margin: 0; padding: 20px; background: #0a0a0a; color: #fff; font-family: Arial; }}
+                .container {{ max-width: 1200px; margin: 0 auto; }}
+                img {{ max-width: 100%; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.5); }}
+                .info {{ margin-top: 20px; padding: 15px; background: #1a1a1a; border-radius: 8px; }}
             </style>
         </head>
         <body>
             <div class="container">
-                <h1>🎨 AI Generated Image</h1>
-                <p class="prompt">Prompt: {clean_prompt}</p>
-                <div class="image-wrapper">
-                    <div class="loader" id="loader"></div>
-                    <img id="genImage" src="{image_url}" alt="Generated image" style="display:none;" onload="document.getElementById('loader').style.display='none'; this.style.display='block';">
-                </div>
+                <img src="{image_url}" alt="Generated image" id="{uid}">
                 <div class="info">
-                    <strong>UID:</strong> {uid} | <strong>Model:</strong> Flux | <strong>Resolution:</strong> 1024x1024 | <strong>Seed:</strong> {seed}
+                    <strong>Prompt:</strong> {clean_prompt}<br>
+                    <strong>Model:</strong> Flux<br>
+                    <strong>Seed:</strong> {seed}
                 </div>
             </div>
         </body>
@@ -171,8 +104,7 @@ def generate_pollinations_html(prompt: str) -> str:
         """
         return html
     except Exception as e:
-        logger.error(f"Image generation failed: {e}")
-        return f"<html><body><h1>Error generating image</h1><p>{str(e)}</p></body></html>"
+        return f"<html><body><h2>Image generation failed:</h2><pre>{str(e)}</pre></body></html>"
 
 # --- STREAMING RESPONSE LOGIC ---
 async def stream_response(request: ChatRequest) -> AsyncGenerator[str, None]:
@@ -182,7 +114,7 @@ async def stream_response(request: ChatRequest) -> AsyncGenerator[str, None]:
         if last_user_msg:
             search_results = perform_search(last_user_msg.content)
             request.messages.append(Message(role="system", content=f"Web search context:\n{search_results}"))
-
+    
     # Выбор модели
     if request.coding_mode:
         model = request.coding_model
@@ -190,22 +122,22 @@ async def stream_response(request: ChatRequest) -> AsyncGenerator[str, None]:
         model = FALLBACK_MODELS[0]
     else:
         model = request.model
-
+    
     # Формирование сообщений для API
     messages = [{"role": m.role, "content": m.content} for m in request.messages]
-
+    
     payload = {
         "model": model,
         "messages": messages,
         "stream": True,
     }
-
+    
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "HTTP-Referer": REFERER,
         "X-Title": SITE_NAME,
     }
-
+    
     try:
         async with httpx.AsyncClient(timeout=120.0) as client:
             async with client.stream("POST", OPENROUTER_URL, json=payload, headers=headers) as response:
@@ -213,17 +145,17 @@ async def stream_response(request: ChatRequest) -> AsyncGenerator[str, None]:
                 async for line in response.aiter_lines():
                     if line.startswith("data: "):
                         line = line[6:]
-                        if line.strip() == "[DONE]":
-                            break
-                        try:
-                            chunk = json.loads(line)
-                            if "choices" in chunk and len(chunk["choices"]) > 0:
-                                delta = chunk["choices"][0].get("delta", {})
-                                content = delta.get("content", "")
-                                if content:
-                                    yield f"data: {json.dumps({'content': content})}\n\n"
-                        except json.JSONDecodeError:
-                            continue
+                    if line.strip() == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(line)
+                        if "choices" in chunk and len(chunk["choices"]) > 0:
+                            delta = chunk["choices"][0].get("delta", {})
+                            content = delta.get("content", "")
+                            if content:
+                                yield f"data: {json.dumps({'content': content})}\n\n"
+                    except json.JSONDecodeError:
+                        continue
     except Exception as e:
         logger.error(f"Streaming error: {e}")
         yield f"data: {json.dumps({'error': str(e)})}\n\n"
