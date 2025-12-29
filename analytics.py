@@ -21,13 +21,13 @@ OPENLLM_LEADERBOARD_URL = (
 # Таймауты и поведение при ошибках
 HTTP_TIMEOUT = 20.0  # секунд
 
+
 # === ГЛОБАЛЬНОЕ СОСТОЯНИЕ АНАЛИТИКИ ===
 
 ANALYTICS_DB: Dict[str, Any] = {
     "last_updated": "11.12.2025 03:00 МСК",
     "summary": (
-        "По состоянию на 11.12.2025,\n"
-        "**Gemini 3 Pro** удерживает лидерство в глобальных "
+        "По состоянию на 11.12.2025, <b>Gemini 3 Pro</b> удерживает лидерство в глобальных "
         "рейтингах благодаря рекордам в научных бенчмарках (GPQA). "
         "Anthropic и DeepSeek продолжают ценовую конкуренцию в премиальном сегменте. "
         "В open‑source сегменте доминирует DeepSeek V3.2."
@@ -160,22 +160,22 @@ ANALYTICS_DB: Dict[str, Any] = {
         {
             "date": "10.12.2025",
             "title": "Gemini 3 Pro обновляет рекорд GPQA",
-            "text": "Модель побила свой же рекорд в экспертных задачах GPQA, усилив отрыв от конкурентов.",
+            "text": "Модель побила свой же рекорд в экспертных задачах GPQA, усилив отрыв от конкурентов."
         },
         {
             "date": "09.12.2025",
             "title": "Снижение цен на Claude 4.5 Opus",
-            "text": "Anthropic уменьшили стоимость токенов на ~20% для крупных клиентов, реагируя на демпинг DeepSeek.",
+            "text": "Anthropic уменьшили стоимость токенов на ~20% для крупных клиентов, реагируя на демпинг DeepSeek."
         },
         {
             "date": "10.12.2025",
             "title": "Анонс Llama 4 Small",
-            "text": "Meta тизерит мультимодальную Llama 4 Small с релизом в январе 2026 года.",
+            "text": "Meta тизерит мультимодальную Llama 4 Small с релизом в январе 2026 года."
         },
         {
             "date": "08.12.2025",
             "title": "Grok 4.1 в Tesla Optimus",
-            "text": "Облегченная версия Grok 4.1 используется в голосовом модуле робота Optimus Gen 3.",
+            "text": "Облегченная версия Grok 4.1 используется в голосовом модуле робота Optimus Gen 3."
         },
     ],
 }
@@ -183,13 +183,11 @@ ANALYTICS_DB: Dict[str, Any] = {
 
 # === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ FETCH И АНАЛИТИКИ ===
 
-
 async def fetch_openllm_leaderboard() -> Optional[Dict[str, Any]]:
-    """Загружает форматированный JSON Open LLM Leaderboard.
-
+    """
+    Загружает форматированный JSON Open LLM Leaderboard.
     Если запрос не удался, возвращает None, чтобы не ломать дашборд. [web:106][web:128]
     """
-
     try:
         async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
             resp = await client.get(OPENLLM_LEADERBOARD_URL)
@@ -203,12 +201,11 @@ def find_lb_row_for_model(
     leaderboard_models: List[Dict[str, Any]],
     tracked: Dict[str, Any],
 ) -> Optional[Dict[str, Any]]:
-    """Пытаемся сопоставить tracked‑модель строке из leaderboard:
-
+    """
+    Пытаемся сопоставить tracked‑модель строке из leaderboard:
     - если есть leaderboard_key, ищем по подстроке в 'Model' / 'fullname';
     - иначе пытаемся матчить по имени (подстрока).
     """
-
     key = tracked.get("leaderboard_key")
     name = tracked["name"].lower()
 
@@ -222,24 +219,21 @@ def find_lb_row_for_model(
         else:
             if name.split()[0] in model_field or name.split()[0] in fullname:
                 return row
-
     return None
 
 
 def update_from_leaderboard(lb_data: Any):
-    """Обновляет ранги на основе данных Open LLM Leaderboard.
-
+    """
+    Обновляет ранги на основе данных Open LLM Leaderboard.
     lb_data ожидается как список словарей (response API).
     """
-
     # API возвращает сразу список моделей, либо структуру, которую нужно проверить
     models_list = []
-
-    if isinstance(lb_data, List):
+    if isinstance(lb_data, list):
         models_list = lb_data
-    elif isinstance(lb_data, Dict) and "models" in lb_data:
+    elif isinstance(lb_data, dict) and "models" in lb_data:
         models_list = lb_data["models"]
-    elif isinstance(lb_data, Dict) and "data" in lb_data:  # Иногда бывает обернуто в 'data'
+    elif isinstance(lb_data, dict) and "data" in lb_data:  # Иногда бывает обернуто в 'data'
         models_list = lb_data["data"]
 
     if not models_list:
@@ -271,39 +265,32 @@ def update_from_leaderboard(lb_data: Any):
 
         new_rank = lb_rank_by_id[id(row)]
         old_rank = prev_ranks.get(tracked["name"])
-
         tracked["rank"] = new_rank
 
         # Определяем изменение позиции
         if old_rank is None:
             tracked["change"] = "NEW"
-            movement_news.append(
-                {
-                    "date": today,
-                    "title": f"{tracked['name']} появилась в Open LLM Leaderboard",
-                    "text": f"Модель впервые зафиксирована в таблице с позицией #{new_rank}.",
-                }
-            )
+            movement_news.append({
+                "date": today,
+                "title": f"{tracked['name']} появилась в Open LLM Leaderboard",
+                "text": f"Модель впервые зафиксирована в таблице с позицией #{new_rank}."
+            })
         else:
             diff = old_rank - new_rank
             if diff > 0:
                 tracked["change"] = f"↑{diff}"
-                movement_news.append(
-                    {
-                        "date": today,
-                        "title": f"{tracked['name']} поднимается в рейтинге",
-                        "text": f"Модель поднялась с #{old_rank} до #{new_rank} в Open LLM Leaderboard.",
-                    }
-                )
+                movement_news.append({
+                    "date": today,
+                    "title": f"{tracked['name']} поднимается в рейтинге",
+                    "text": f"Модель поднялась с #{old_rank} до #{new_rank} в Open LLM Leaderboard."
+                })
             elif diff < 0:
                 tracked["change"] = f"↓{abs(diff)}"
-                movement_news.append(
-                    {
-                        "date": today,
-                        "title": f"{tracked['name']} теряет позиции",
-                        "text": f"Модель опустилась с #{old_rank} до #{new_rank} в Open LLM Leaderboard.",
-                    }
-                )
+                movement_news.append({
+                    "date": today,
+                    "title": f"{tracked['name']} теряет позиции",
+                    "text": f"Модель опустилась с #{old_rank} до #{new_rank} в Open LLM Leaderboard."
+                })
             else:
                 # Без изменений
                 if tracked.get("change") not in ("NEW",):
@@ -312,9 +299,7 @@ def update_from_leaderboard(lb_data: Any):
         # При желании можно подтягивать короткий статус по типу/среднему скору
         avg = row.get("Average ⬆️")
         if isinstance(avg, (int, float)):
-            tracked["status"] = (
-                f"{tracked['status']} (средний балл на Open LLM Leaderboard: {avg:.2f})"
-            )
+            tracked["status"] = f"{tracked['status']} (средний балл на Open LLM Leaderboard: {avg:.2f})"
 
     # Обновляем блок новостей: добавляем свежие новости на первое место
     if movement_news:
@@ -325,34 +310,24 @@ def update_from_leaderboard(lb_data: Any):
 
 # === ОБНОВЛЕНИЕ АНАЛИТИКИ РАЗ В СУТКИ (3:00 МСК) ===
 
-
 def generate_daily_summary(models: List[Dict[str, Any]]) -> str:
-    """Генерирует текст саммари на основе текущих рангов."""
-
+    """
+    Генерирует текст саммари на основе текущих рангов.
+    """
     # Находим лидеров
     sorted_models = sorted(models, key=lambda m: m["rank"])
     leader = sorted_models[0]
 
     # Ищем тех, кто вырос (change содержит '↑' или 'NEW')
-    risers = [
-        m["name"]
-        for m in models
-        if "↑" in str(m.get("change", "")) or "NEW" in str(m.get("change", ""))
-    ]
+    risers = [m["name"] for m in models if "↑" in str(m.get("change", "")) or "NEW" in str(m.get("change", ""))]
 
     # Формируем текст
     today = datetime.now(ZoneInfo("Europe/Moscow")).strftime("%d.%m.%Y")
-    summary = (
-        f"По состоянию на {today}, **{leader['name']}** удерживает лидерство в глобальном рейтинге. "
-    )
-
+    summary = f"По состоянию на {today}, **{leader['name']}** удерживает лидерство в глобальном рейтинге. "
     if risers:
         summary += f"Заметный рост показывают: **{', '.join(risers)}**. "
     else:
-        summary += (
-            "В топе сохраняется стабильность, значительных изменений позиций за сутки не зафиксировано. "
-        )
-
+        summary += "В топе сохраняется стабильность, значительных изменений позиций за сутки не зафиксировано. "
     summary += "Конкуренция в open-source сегменте продолжает усиливаться."
     return summary
 
@@ -384,18 +359,16 @@ async def refresh_analytics_data():
 def seconds_until_next_3_msk() -> float:
     tz_msk = ZoneInfo("Europe/Moscow")
     now = datetime.now(tz=tz_msk)
-
-    # ВАЖНО: здесь в примере стоит 12:00 для теста, можно вернуть 3:00
-    target_today = datetime.combine(now.date(), time(12, 0), tzinfo=tz_msk)
+    target_today = datetime.combine(now.date(), time(3, 0), tzinfo=tz_msk)
     if now >= target_today:
         target_today = target_today + timedelta(days=1)
-
     return (target_today - now).total_seconds()
 
 
 async def analytics_scheduler_loop():
-    """Бесконечный планировщик: ждёт до следующего 3:00 МСК, обновляет данные, повторяет цикл. [web:22][web:23][web:26]"""
-
+    """
+    Бесконечный планировщик: ждёт до следующего 3:00 МСК, обновляет данные, повторяет цикл. [web:22][web:23][web:26]
+    """
     while True:
         delay = seconds_until_next_3_msk()
         await asyncio.sleep(delay)
@@ -410,7 +383,6 @@ def init_analytics_scheduler(app: FastAPI):
 
 # === РОУТ /analytics (рендер HTML‑дашборда) ===
 
-
 @router.get("/analytics", response_class=HTMLResponse)
 async def analytics_page():
     now_str = datetime.now().strftime("%d.%m.%Y")
@@ -421,238 +393,160 @@ async def analytics_page():
     rows_html = ""
     for m in ANALYTICS_DB["models"]:
         change_class = (
-            "change-up"
-            if "↑" in str(m.get("change", "")) or "NEW" in str(m.get("change", ""))
-            else "change-down"
-            if "↓" in str(m.get("change", ""))
+            "change-up" if "↑" in str(m.get("change", "")) or "NEW" in str(m.get("change", ""))
+            else "change-down" if "↓" in str(m.get("change", ""))
             else "change-neutral"
         )
 
         rows_html += f"""
-            <tr>
-                <td>{m['rank']}</td>
-                <td>{m['name']}</td>
-                <td>{m['type']}</td>
-                <td>{m['params']}</td>
-                <td>{m['release']}</td>
-                <td>{m['status']}</td>
-                <td class="{change_class}">{m['change']}</td>
-            </tr>
+        <tr>
+            <td>{m['rank']}</td>
+            <td><strong>{m['name']}</strong><br><small>{m['vendor']}</small></td>
+            <td>{m['type']}</td>
+            <td>{m['params']}</td>
+            <td>{m['release']}</td>
+            <td>{m['status']}</td>
+            <td class="{change_class}">{m['change']}</td>
+        </tr>
         """
 
     # Новости
     news_html = ""
     for n in ANALYTICS_DB["news"]:
         news_html += f"""
-            <div class="news-item">
-                <div class="news-date">{n['date']}</div>
-                <div class="news-title">{n['title']}</div>
-                <div class="news-text">{n['text']}</div>
-            </div>
+        <div class="news-item">
+            <div class="news-date">{n['date']}</div>
+            <div class="news-title">{n['title']}</div>
+            <div class="news-text">{n['text']}</div>
+        </div>
         """
 
-    html = f"""
+    # HTML страницы
+    page = f"""
     <!DOCTYPE html>
     <html lang="ru">
     <head>
         <meta charset="UTF-8">
-        <title>LLM Analytics Dashboard</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>AI Analytics Dashboard</title>
         <style>
+            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
             body {{
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-                background: radial-gradient(circle at top, #1a1a2e 0, #08081a 55%, #050510 100%);
-                color: #f5f5f5;
-                margin: 0;
-                padding: 0;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+                background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+                color: #e0e0e0;
+                padding: 20px;
+                line-height: 1.6;
             }}
-            .page {{
-                max-width: 1100px;
-                margin: 0 auto;
-                padding: 24px 16px 48px;
+            .container {{ max-width: 1400px; margin: 0 auto; }}
+            h1 {{
+                font-size: 2.5rem;
+                margin-bottom: 10px;
+                background: linear-gradient(90deg, #00d4ff, #00ff88);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
             }}
-            .title {{
-                font-size: 28px;
-                font-weight: 650;
-                margin-bottom: 4px;
-                letter-spacing: 0.03em;
+            .summary {{
+                background: rgba(255,255,255,0.05);
+                border-left: 4px solid #00d4ff;
+                padding: 20px;
+                margin: 20px 0;
+                border-radius: 8px;
+                font-size: 1.05rem;
             }}
-            .subtitle {{
-                font-size: 14px;
-                color: #a0a0b8;
-                margin-bottom: 24px;
-            }}
-            .summary-card {{
-                background: #101020;
-                border-radius: 16px;
-                padding: 16px 18px;
-                border: 1px solid rgba(255, 255, 255, 0.04);
-                margin-bottom: 20px;
-            }}
-            .summary-title {{
-                font-size: 13px;
-                text-transform: uppercase;
-                letter-spacing: 0.13em;
-                font-weight: 600;
-                color: #8f9bc9;
-                margin-bottom: 8px;
-            }}
-            .summary-text {{
-                font-size: 14px;
-                line-height: 1.5;
-            }}
-            .grid {{
-                display: grid;
-                grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-                gap: 18px;
-                align-items: flex-start;
-            }}
-            @media (max-width: 900px) {{
-                .grid {{
-                    grid-template-columns: minmax(0, 1fr);
-                }}
-            }}
-            .card {{
-                background: #101020;
-                border-radius: 16px;
-                border: 1px solid rgba(255, 255, 255, 0.04);
-                overflow: hidden;
-            }}
-            .card-header {{
-                display: flex;
-                justify-content: space-between;
-                align-items: baseline;
-                padding: 12px 16px 10px;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-            }}
-            .card-title {{
-                font-size: 14px;
-                font-weight: 600;
-                letter-spacing: 0.12em;
-                text-transform: uppercase;
-                color: #9da6ff;
-            }}
-            .card-subtitle {{
-                font-size: 12px;
-                color: #7f88b5;
-            }}
-            .table-wrapper {{
-                overflow-x: auto;
+            .last-updated {{
+                color: #888;
+                font-size: 0.9rem;
+                margin-bottom: 30px;
             }}
             table {{
                 width: 100%;
                 border-collapse: collapse;
-                font-size: 13px;
+                background: rgba(255,255,255,0.03);
+                border-radius: 8px;
+                overflow: hidden;
+                margin-bottom: 40px;
             }}
             th, td {{
-                padding: 8px 12px;
+                padding: 15px;
                 text-align: left;
-                white-space: nowrap;
+                border-bottom: 1px solid rgba(255,255,255,0.1);
             }}
             th {{
-                font-size: 11px;
-                text-transform: uppercase;
-                letter-spacing: 0.14em;
+                background: rgba(0,212,255,0.1);
+                color: #00d4ff;
                 font-weight: 600;
-                color: #8088bb;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-                background: linear-gradient(to bottom, rgba(255,255,255,0.02), transparent);
+                text-transform: uppercase;
+                font-size: 0.85rem;
             }}
-            td {{
-                border-bottom: 1px solid rgba(255, 255, 255, 0.02);
-                color: #e5e5ff;
-            }}
-            tr:nth-child(even) td {{
-                background: rgba(255, 255, 255, 0.01);
-            }}
-            .col-rank {{ width: 32px; text-align: center; color: #9ca3ff; }}
-            .col-model {{ font-weight: 500; }}
-            .col-type {{ color: #a1a9d6; }}
-            .col-params {{ color: #c2c7f0; }}
-            .col-release {{ color: #a2a2bf; }}
-            .col-status {{ max-width: 240px; white-space: normal; line-height: 1.4; }}
-            .col-change {{ width: 60px; text-align: center; font-weight: 600; }}
-            .change-up {{ color: #4ade80; }}
-            .change-down {{ color: #fb7185; }}
-            .change-neutral {{ color: #a1a1b5; }}
-            .news-list {{
-                padding: 8px 16px 10px;
+            tr:hover {{ background: rgba(255,255,255,0.05); }}
+            .change-up {{ color: #00ff88; font-weight: bold; }}
+            .change-down {{ color: #ff4444; font-weight: bold; }}
+            .change-neutral {{ color: #888; }}
+            .news-section {{ margin-top: 40px; }}
+            .news-section h2 {{
+                font-size: 1.8rem;
+                margin-bottom: 20px;
+                color: #00ff88;
             }}
             .news-item {{
-                padding: 8px 0;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+                background: rgba(255,255,255,0.05);
+                padding: 15px;
+                margin-bottom: 15px;
+                border-radius: 8px;
+                border-left: 3px solid #00ff88;
             }}
-            .news-item:last-child {{ border-bottom: none; }}
             .news-date {{
-                font-size: 11px;
-                color: #8b92be;
-                margin-bottom: 2px;
+                color: #888;
+                font-size: 0.85rem;
+                margin-bottom: 5px;
             }}
             .news-title {{
-                font-size: 13px;
-                font-weight: 500;
-                margin-bottom: 2px;
+                font-weight: bold;
+                font-size: 1.1rem;
+                margin-bottom: 8px;
+                color: #00d4ff;
             }}
-            .news-text {{
-                font-size: 12px;
-                color: #d4d4f7;
-            }}
-            .footer {{
-                margin-top: 16px;
-                font-size: 11px;
-                color: #7b82aa;
+            .news-text {{ color: #ccc; }}
+            @media (max-width: 768px) {{
+                h1 {{ font-size: 1.8rem; }}
+                table {{ font-size: 0.85rem; }}
+                th, td {{ padding: 10px 8px; }}
             }}
         </style>
     </head>
     <body>
-        <div class="page">
-            <div class="title">LLM Analytics Dashboard</div>
-            <div class="subtitle">Обновление рейтингов моделей и краткие новости экосистемы LLM. Данные частично синхронизированы с Open LLM Leaderboard.</div>
+        <div class="container">
+            <h1>🤖 AI Models Analytics Dashboard</h1>
+            <div class="last-updated">Последнее обновление: {last_updated}</div>
+            
+            <div class="summary">{summary}</div>
 
-            <div class="summary-card">
-                <div class="summary-title">Ежедневное саммари</div>
-                <div class="summary-text">{summary}</div>
-                <div class="footer">Последнее обновление: {last_updated}</div>
-            </div>
+            <h2 style="color: #00d4ff; margin-top: 30px; margin-bottom: 15px;">Топ‑10 моделей на сегодня</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Модель</th>
+                        <th>Тип</th>
+                        <th>Параметры</th>
+                        <th>Релиз / Апдейт</th>
+                        <th>Текущий статус</th>
+                        <th>Изм.</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows_html}
+                </tbody>
+            </table>
 
-            <div class="grid">
-                <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">Топ‑10 моделей на сегодня</div>
-                        <div class="card-subtitle">Сортировка по среднему скору на Open LLM Leaderboard (если доступен)</div>
-                    </div>
-                    <div class="table-wrapper">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th class="col-rank">#</th>
-                                    <th class="col-model">Модель</th>
-                                    <th class="col-type">Тип</th>
-                                    <th class="col-params">Параметры</th>
-                                    <th class="col-release">Релиз / Апдейт</th>
-                                    <th class="col-status">Текущий статус</th>
-                                    <th class="col-change">Изм.</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {rows_html}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">Новости рынка LLM</div>
-                        <div class="card-subtitle">Ключевые события последних дней</div>
-                    </div>
-                    <div class="news-list">
-                        {news_html}
-                    </div>
-                </div>
+            <div class="news-section">
+                <h2>📰 Последние новости</h2>
+                {news_html}
             </div>
         </div>
     </body>
     </html>
     """
 
-    return HTMLResponse(content=html)
+    return page
