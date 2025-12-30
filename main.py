@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 
 # Импорты из новых модулей
 from config import (
